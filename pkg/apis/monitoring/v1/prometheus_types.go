@@ -475,10 +475,11 @@ type CommonPrometheusFields struct {
 	// `spec.bearerTokenSecret` field.
 	ArbitraryFSAccessThroughSMs ArbitraryFSAccessThroughSMsConfig `json:"arbitraryFSAccessThroughSMs,omitempty"`
 
-	// When true, Prometheus resolves label conflicts by renaming the labels in
-	// the scraped data to "exported_<label value>" for all targets created
-	// from service and pod monitors.
-	// Otherwise the HonorLabels field of the service or pod monitor applies.
+	// When true, Prometheus resolves label conflicts by renaming the labels in the scraped data
+	//  to “exported_” for all targets created from ServiceMonitor, PodMonitor and
+	// ScrapeConfig objects. Otherwise the HonorLabels field of the service or pod monitor applies.
+	// In practice,`overrideHonorLaels:true` enforces `honorLabels:false`
+	// for all ServiceMonitor, PodMonitor and ScrapeConfig objects.
 	OverrideHonorLabels bool `json:"overrideHonorLabels,omitempty"`
 	// When true, Prometheus ignores the timestamps for all the targets created
 	// from service and pod monitors.
@@ -1302,8 +1303,16 @@ type RemoteWriteSpec struct {
 	// +optional
 	TLSConfig *TLSConfig `json:"tlsConfig,omitempty"`
 
-	// Optional ProxyURL.
-	ProxyURL string `json:"proxyUrl,omitempty"`
+	// Optional ProxyConfig.
+	// +optional
+	ProxyConfig `json:",inline"`
+
+	// Configure whether HTTP requests follow HTTP 3xx redirects.
+	//
+	// It requires Prometheus >= v2.26.0.
+	//
+	// +optional
+	FollowRedirects *bool `json:"followRedirects,omitempty"`
 
 	// QueueConfig allows tuning of the remote write queue parameters.
 	// +optional
@@ -1504,8 +1513,9 @@ type RemoteReadSpec struct {
 	// +optional
 	TLSConfig *TLSConfig `json:"tlsConfig,omitempty"`
 
-	// Optional ProxyURL.
-	ProxyURL string `json:"proxyUrl,omitempty"`
+	// Optional ProxyConfig.
+	// +optional
+	ProxyConfig `json:",inline"`
 
 	// Configure whether HTTP requests follow HTTP 3xx redirects.
 	//
@@ -1804,9 +1814,11 @@ func (c *SafeAuthorization) Validate() error {
 	if strings.ToLower(strings.TrimSpace(c.Type)) == "basic" {
 		return &AuthorizationValidationError{`Authorization type cannot be set to "basic", use "basic_auth" instead`}
 	}
+
 	if c.Credentials == nil {
 		return &AuthorizationValidationError{"Authorization credentials are required"}
 	}
+
 	return nil
 }
 
@@ -1822,9 +1834,11 @@ func (c *Authorization) Validate() error {
 	if c.Credentials != nil && c.CredentialsFile != "" {
 		return &AuthorizationValidationError{"Authorization can not specify both Credentials and CredentialsFile"}
 	}
+
 	if strings.ToLower(strings.TrimSpace(c.Type)) == "basic" {
 		return &AuthorizationValidationError{"Authorization type cannot be set to \"basic\", use \"basic_auth\" instead"}
 	}
+
 	return nil
 }
 
